@@ -3,48 +3,623 @@
 <head>
 <meta charset="UTF-8">
 <title>Panel LAN Center</title>
-
 <link rel="stylesheet" href="style.css">
 
+<style>
+
+.botones-qr{
+display:flex;
+gap:10px;
+margin-top:10px;
+}
+
+.botones-qr button{
+flex:1;
+}
+
+.zoom{
+transform:scale(1.5);
+z-index:1000;
+position:relative;
+}
+
+</style>
 </head>
 
 <body>
 
 <!-- HEADER -->
 <div class="header-premium">
-
+<div class="top-logo">
 <img src="logo.png" class="logo">
+</div>
 
 <h1 class="titulo">PANEL LAN CENTER JACKNNIEL</h1>
-
-<h2 class="rol">Usuario: admin@lan.com</h2>
-
+<h2 id="rolTexto" class="rol"></h2>
 </div>
 
 <hr>
 
-<!-- MENU -->
-<div class="menu-botones">
-
-<button class="btn">Lcj Qr</button>
-<button class="btn">Lcj Mensajes</button>
-<button class="btn">Lcj Precios</button>
-<button class="btn">Lcj Galeria</button>
-<button class="btn">Lcj Videos</button>
-<button class="btn">Lcj Promos</button>
-
-<button class="btn">Glb Qr</button>
-<button class="btn">Glb Mensajes</button>
-<button class="btn">Glb Precios</button>
-<button class="btn">Glb Galeria</button>
-<button class="btn">Glb Videos</button>
-<button class="btn">Glb Promos</button>
-
-</div>
+<!-- MENU DINAMICO -->
+<div class="menu-botones" id="menuCategorias"></div>
 
 <br>
 
-<button class="btn-salir">Salir</button>
+<!-- PANEL DINAMICO -->
+<div id="panelDinamico"></div>
+
+<br>
+
+<button class="btn-salir" onclick="logout()">Salir</button>
+
+<script>
+
+/* LOGIN */
+
+let user = localStorage.getItem("user")
+
+if(!user){
+window.location.href="login.html"
+}
+
+document.getElementById("rolTexto").innerText="Usuario: "+user
+
+
+
+/* ============================ */
+/* CREAR CATEGORIAS AUTOMATICAS */
+/* ============================ */
+
+async function cargarCategorias(){
+
+let menu = document.getElementById("menuCategorias")
+let panel = document.getElementById("panelDinamico")
+
+try{
+
+const res = await fetch("categorias.txt?v="+Date.now())
+const texto = await res.text()
+
+let lineas = texto.split("\n")
+
+lineas.forEach(linea=>{
+
+if(!linea.includes("|")) return
+
+let datos = linea.split("|")
+
+let nombre = datos[0].trim()
+let archivo = datos[1].trim()
+
+let id = nombre.replaceAll(" ","_")
+
+/* CREAR BOTON */
+
+menu.innerHTML += `
+<button class="btn" onclick="abrirCategoria('${id}','${archivo}','${nombre}')">
+${nombre}
+</button>
+`
+
+/* CREAR PANEL */
+
+panel.innerHTML += `
+<div id="panel_${id}" class="panel-seccion" style="display:none;">
+
+<h2 class="subtitulo">${nombre}</h2>
+
+<input
+class="buscador"
+placeholder="🔍 Buscar..."
+onkeyup="buscarGeneral('${id}')">
+
+<div id="contenido_${id}">
+⏳ Cargando...
+</div>
+
+</div>
+`
+
+})
+
+}catch{
+
+menu.innerHTML="Error cargando categorias"
+
+}
+
+}
+
+
+
+/* ============================ */
+/* ABRIR CATEGORIA */
+/* ============================ */
+
+function abrirCategoria(id,archivo){
+
+document.querySelectorAll(".panel-seccion").forEach(p=>{
+p.style.display="none"
+})
+
+let panel = document.getElementById("panel_"+id)
+panel.style.display="block"
+
+cargarContenido(archivo,"contenido_"+id)
+
+}
+
+
+
+  
+/* ============================ */
+/* CARGAR CONTENIDO TXT */
+/* ============================ */
+
+  async function cargarContenido(archivo,contenedor){
+
+let div = document.getElementById(contenedor)
+
+try{
+
+const res = await fetch(archivo+"?v="+Date.now())
+const texto = await res.text()
+
+let html=""
+
+let categoriaActual="" 
+  
+let lineas = texto.split("\n")
+
+let nombreActual=""
+let valorActual=""
+let descripcion=""
+
+lineas.forEach(linea=>{
+
+/* BOTONES ### */
+
+if(linea.startsWith("###")){
+
+categoriaActual = linea.replace("###","").trim()
+
+html += `
+<div class="subcategoria">
+<button class="btn-sub" onclick="filtrarSub('${categoriaActual}')">
+${categoriaActual}
+</button>
+</div>
+`
+
+return
+
+}
+  
+linea=linea.trim()
+
+if(linea.includes("|")){
+
+/* guardar tarjeta anterior */
+
+if(nombreActual){
+
+html+=crearTarjeta(nombreActual,valorActual,descripcion)
+
+}
+
+/* nueva tarjeta */
+
+let partes=linea.split("|")
+
+nombreActual=partes[0].trim()
+valorActual=partes.slice(1).join("|").trim()
+
+descripcion=""
+
+}else{
+
+descripcion += linea + "\n"
+
+}
+
+})
+
+/* última tarjeta */
+
+if(nombreActual){
+
+html+=crearTarjeta(nombreActual,valorActual,descripcion)
+
+}
+
+div.innerHTML = `<div class="grid">${html}</div>`
+
+}catch{
+
+div.innerHTML="Error cargando archivo"
+
+}
+
+}
+
+
+ function crearTarjeta(nombre,valor,descripcion){
+
+/* IMAGEN */
+
+if(valor.match(/\.(png|jpg|jpeg|webp|gif)$/i)){
+
+let id="img_"+nombre.replaceAll(" ","")
+
+return `
+<div class="card-pro" onclick="copiarTarjeta(this)">
+
+<h2>${nombre}</h2>
+
+<img id="${id}"
+class="qr-img"
+src="${valor}"
+onclick="zoomQR('${id}')">
+
+<div class="texto-pro">${descripcion}</div>
+
+<div class="botones-qr">
+
+<button class="btn-copy"
+onclick="copiarQR('${id}')">
+📋 Copiar
+</button>
+
+<button class="btn-download"
+onclick="descargarQR('${valor}','${nombre}')">
+⬇ Descargar
+</button>
+
+</div>
+
+</div>
+`
+
+}
+
+/* VIDEO */
+
+if(
+valor.includes("youtube.com") ||
+valor.includes("youtu.be") ||
+valor.includes("tiktok.com") ||
+valor.includes("instagram.com") ||
+valor.includes("facebook.com") ||
+valor.match(/\.(mp4|webm|ogg)$/i)
+){
+
+return `
+<div class="card-pro" data-cat="${categoriaActual}">
+
+<h2>${nombre}</h2>
+
+<div class="video-container">
+
+<iframe
+src="${convertirVideo(valor)}"
+frameborder="0"
+allowfullscreen>
+</iframe>
+
+</div>
+
+<div class="texto-pro">${descripcion}</div>
+
+<div class="botones-qr">
+
+<button class="btn-copy"
+onclick="navigator.clipboard.writeText('${valor}');mostrarMensaje('Link copiado')">
+📋 Copiar link
+</button>
+
+<button class="btn-download"
+onclick="window.open('${valor}','_blank')">
+▶ Abrir video
+</button>
+
+</div>
+
+</div>
+`
+
+}
+
+/* TEXTO NORMAL */
+
+return `
+<div class="card-pro">
+
+<h2>${nombre}</h2>
+
+<div class="texto-pro">
+${valor}
+${descripcion}
+</div>
+
+<button class="btn-copy" onclick="copiarTarjeta(this)">
+📋 Copiar
+</button>
+
+</div>
+`
+
+}
+
+
+/* ============================ */
+/* BUSCADOR */
+/* ============================ */
+
+function buscarGeneral(id){
+
+let input = event.target.value.toLowerCase()
+
+let contenedor = document.getElementById("contenido_"+id)
+
+contenedor.querySelectorAll(".card-pro").forEach(card=>{
+
+let texto = card.innerText.toLowerCase()
+
+if(texto.includes(input)){
+card.style.display="block"
+}else{
+card.style.display="none"
+}
+
+})
+
+}
+
+
+/* ============================ */
+/* UTILIDADES */
+/* ============================ */
+
+async function copiarQR(id){
+
+let img=document.getElementById(id)
+
+const res=await fetch(img.src)
+const blob=await res.blob()
+
+await navigator.clipboard.write([
+new ClipboardItem({[blob.type]:blob})
+])
+
+mostrarMensaje("Imagen copiada")
+
+}
+
+function descargarQR(url,nombre){
+
+let a=document.createElement("a")
+
+a.href=url
+a.download=nombre+".png"
+
+a.click()
+
+}
+
+function zoomQR(id){
+
+document.getElementById(id).classList.toggle("zoom")
+
+}
+
+function mostrarMensaje(txt){
+
+let aviso=document.createElement("div")
+
+aviso.innerText=txt
+aviso.className="toast"
+
+document.body.appendChild(aviso)
+
+setTimeout(()=>aviso.remove(),1500)
+
+}
+
+function logout(){
+
+localStorage.clear()
+window.location.href="login.html"
+
+}
+
+
+ function convertirVideo(link){
+
+/* YOUTUBE */
+
+if(link.includes("youtube.com/watch")){
+
+let id = link.split("v=")[1]
+return "https://www.youtube.com/embed/"+id
+
+}
+
+if(link.includes("youtu.be")){
+
+let id = link.split("/").pop()
+return "https://www.youtube.com/embed/"+id
+
+}
+
+/* TIKTOK */
+
+if(link.includes("tiktok.com")){
+
+return link.replace("/video/","/embed/")
+
+}
+
+/* INSTAGRAM */
+
+if(link.includes("instagram.com")){
+
+return link+"/embed"
+
+}
+
+/* FACEBOOK */
+
+if(link.includes("facebook.com")){
+
+return "https://www.facebook.com/plugins/video.php?href="+link
+
+}
+
+return link
+}
+
+function copiarTexto(btn){
+
+let tarjeta = btn.closest(".card-pro")
+
+let texto = tarjeta.innerText
+
+navigator.clipboard.writeText(texto)
+
+.then(()=>{
+
+mostrarMensaje("Texto copiado")
+
+})
+
+.catch(()=>{
+
+/* método alternativo */
+
+let area = document.createElement("textarea")
+
+area.value = texto
+
+document.body.appendChild(area)
+
+area.select()
+
+document.execCommand("copy")
+
+document.body.removeChild(area)
+
+mostrarMensaje("Texto copiado")
+
+})
+
+}
+
+
+function copiarTarjeta(btn){
+
+let tarjeta = btn.closest(".card-pro")
+
+let texto = tarjeta.querySelector(".texto-pro").innerText
+
+/* quitar espacios arriba y abajo */
+texto = texto.trim()
+
+navigator.clipboard.writeText(texto)
+
+.then(()=>{
+mostrarMensaje("📋 Copiado")
+})
+
+.catch(()=>{
+
+let area=document.createElement("textarea")
+
+area.value=texto
+
+document.body.appendChild(area)
+
+area.select()
+
+document.execCommand("copy")
+
+document.body.removeChild(area)
+
+mostrarMensaje("📋 Copiado")
+
+})
+
+}
+
+function filtrarSub(cat){
+
+document.querySelectorAll(".btn-sub").forEach(btn=>{
+
+btn.classList.remove("active")
+
+if(btn.innerText.trim()==cat){
+btn.classList.add("active")
+}
+
+})
+
+document.querySelectorAll(".card-pro").forEach(card=>{
+
+if(card.dataset.cat===cat){
+
+card.style.display="block"
+
+}else{
+
+card.style.display="none"
+
+}
+
+})
+
+window.scrollTo({
+top:0,
+behavior:"smooth"
+})
+
+}
+  
+
+function toggleSubcategoria(id){
+
+let cont = document.getElementById(id)
+
+if(cont.style.display=="none"){
+cont.style.display="block"
+}else{
+cont.style.display="none"
+}
+
+}
+
+function abrirSubcategoria(id){
+
+document.querySelectorAll(".contenido-sub").forEach(el=>{
+el.style.display="none"
+})
+
+let cont = document.getElementById(id)
+
+if(cont){
+cont.style.display="block"
+}
+
+}
+  
+/* ============================ */
+/* INICIAR PANEL */
+/* ============================ */
+
+cargarCategorias()
+
+</script>
 
 </body>
 </html>
+
+
+
