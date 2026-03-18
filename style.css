@@ -1,1 +1,68 @@
+body{
+margin:0;
+font-family:Arial;
+background:#0b1224;
+color:white;
+}
 
+/* APP LAYOUT */
+.app{
+display:flex;
+height:100vh;
+}
+
+/* SIDEBAR */
+.sidebar{
+width:220px;
+background:#050b1a;
+padding:20px;
+display:flex;
+flex-direction:column;
+gap:15px;
+box-shadow:0 0 20px #00ffff33;
+}
+
+.logo{
+text-align:center;
+color:cyan;
+}
+
+.menu-btn{
+padding:12px;
+border:none;
+border-radius:10px;
+background:#0c142b;
+color:white;
+cursor:pointer;
+transition:.2s;
+}
+
+.menu-btn:hover{
+background:#00ffff33;
+}
+
+.menu-btn.active{
+background:#00ffff;
+color:black;
+}
+
+/* CONTENIDO */
+.contenido{
+flex:1;
+padding:30px;
+}
+
+/* CARDS */
+.cards{
+display:flex;
+gap:20px;
+margin-top:20px;
+flex-wrap:wrap;
+}
+
+.card{
+background:#0c142b;
+padding:20px;
+border-radius:15px;
+box-shadow:0 0 10px #00ffff33;
+}
