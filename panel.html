@@ -2,25 +2,414 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Panel</title>
+<title>Panel LAN Center</title>
 <link rel="stylesheet" href="style.css">
+
+<style>
+.botones-qr{
+display:flex;
+gap:10px;
+margin-top:10px;
+}
+
+.botones-qr button{
+flex:1;
+}
+
+.zoom{
+transform:scale(1.5);
+z-index:1000;
+position:relative;
+}
+
+.destacado{
+border:2px solid yellow;
+box-shadow:0 0 20px yellow;
+}
+</style>
 </head>
 
 <body>
 
-<div class="header">
-<h1>🎮 LAN CENTER</h1>
-<p id="rol"></p>
-<button onclick="logout()">Salir</button>
+<div class="header-premium">
+<div class="top-logo">
+<img src="logo.png" class="logo">
 </div>
 
-<div id="menu" class="menu"></div>
+<h1 class="titulo">PANEL LAN CENTER JACKNNIEL</h1>
+<h2 id="rolTexto" class="rol"></h2>
+</div>
 
-<div id="subcats" class="subcats"></div>
+<hr>
 
-<div id="contenido" class="contenido"></div>
+<div class="menu-botones" id="menuCategorias"></div>
 
-<script src="app.js"></script>
+<br>
+
+<div id="panelDinamico"></div>
+
+<br>
+
+<button class="btn-salir" onclick="logout()">Salir</button>
+
+<script>
+
+/* LOGIN */
+
+let user = localStorage.getItem("user")
+let rol = localStorage.getItem("rol") || "admin"
+
+if(!user){
+window.location.href="login.html"
+}
+
+document.getElementById("rolTexto").innerText="Usuario: "+user+" ("+rol+")"
+
+
+/* ============================ */
+/* CATEGORIAS PRO */
+/* ============================ */
+
+async function cargarCategorias(){
+
+let menu = document.getElementById("menuCategorias")
+let panel = document.getElementById("panelDinamico")
+
+let lista = []
+
+const res = await fetch("categorias.txt?v="+Date.now())
+const texto = await res.text()
+
+let lineas = texto.split("\n")
+
+lineas.forEach(linea=>{
+
+if(!linea.includes("|")) return
+
+let datos = linea.split("|")
+
+let nombre = datos[0].trim()
+let archivo = datos[1].trim()
+
+let id = nombre.replaceAll(" ","_")
+
+let color = "cyan"
+let activo = true
+let roles = "admin,operador"
+let icon = ""
+let orden = 0
+
+datos.forEach(d=>{
+
+d = d.trim()
+
+if(d.includes("color=")) color = d.split("=")[1]
+if(d.includes("activo=")) activo = d.includes("true")
+if(d.includes("roles=")) roles = d.split("=")[1]
+if(d.includes("icon=")) icon = d.split("=")[1]
+if(d.includes("orden=")) orden = parseInt(d.split("=")[1])
+
+})
+
+if(!activo) return
+if(!roles.includes(rol)) return
+
+lista.push({nombre,archivo,id,color,orden,icon})
+
+})
+
+/* ORDENAR */
+
+lista.sort((a,b)=>a.orden-b.orden)
+
+/* RENDER */
+
+lista.forEach(cat=>{
+
+menu.innerHTML += `
+<button class="btn"
+style="background:${cat.color}"
+onclick="abrirCategoria('${cat.id}','${cat.archivo}','${cat.nombre}')">
+${cat.icon} ${cat.nombre}
+</button>
+`
+
+panel.innerHTML += `
+<div id="panel_${cat.id}" class="panel-seccion" style="display:none;">
+
+<h2 class="subtitulo">${cat.nombre}</h2>
+
+<input class="buscador"
+placeholder="🔍 Buscar..."
+onkeyup="buscarGeneral('${cat.id}')">
+
+<div id="contenido_${cat.id}">
+⏳ Cargando...
+</div>
+
+</div>
+`
+
+})
+
+}
+
+
+/* ============================ */
+/* ABRIR CATEGORIA */
+/* ============================ */
+
+function abrirCategoria(id,archivo){
+
+document.querySelectorAll(".panel-seccion").forEach(p=>{
+p.style.display="none"
+})
+
+let panel = document.getElementById("panel_"+id)
+panel.style.display="block"
+
+cargarContenido(archivo,"contenido_"+id)
+
+}
+
+
+/* ============================ */
+/* CONTENIDO PRO */
+/* ============================ */
+
+async function cargarContenido(archivo,contenedor){
+
+let div = document.getElementById(contenedor)
+
+const res = await fetch(archivo+"?v="+Date.now())
+const texto = await res.text()
+
+let html=""
+let categoriaActual=""
+
+let lineas = texto.split("\n")
+
+let nombreActual=""
+let valorActual=""
+let descripcion=""
+
+lineas.forEach(linea=>{
+
+/* SUBCATEGORIA PRO */
+
+if(linea.startsWith("###")){
+
+let partes = linea.replace("###","").trim().split("|")
+
+categoriaActual = partes[0].trim()
+
+let activo = true
+
+partes.forEach(p=>{
+if(p.includes("activo=")){
+activo = p.includes("true")
+}
+})
+
+if(!activo) return
+
+html += `
+<div class="subcategoria">
+<button class="btn-sub" onclick="filtrarSub('${categoriaActual}')">
+${categoriaActual}
+</button>
+</div>
+`
+
+return
+}
+
+linea=linea.trim()
+
+if(linea.includes("|")){
+
+if(nombreActual){
+html+=crearTarjeta(nombreActual,valorActual,descripcion)
+}
+
+let partes=linea.split("|")
+
+nombreActual=partes[0].trim()
+valorActual=partes.slice(1).join("|").trim()
+
+descripcion=""
+
+}else{
+
+descripcion += linea + "\n"
+
+}
+
+})
+
+if(nombreActual){
+html+=crearTarjeta(nombreActual,valorActual,descripcion)
+}
+
+div.innerHTML = `<div class="grid">${html}</div>`
+
+}
+
+
+/* ============================ */
+/* TARJETAS PRO */
+/* ============================ */
+
+function crearTarjeta(nombre,valor,descripcion){
+
+let destacado = descripcion.includes("destacado=true") ? "destacado" : ""
+
+if(valor.match(/\.(png|jpg|jpeg|webp|gif)$/i)){
+
+let id="img_"+nombre.replaceAll(" ","")
+
+return `
+<div class="card-pro ${destacado}">
+
+<h2>${nombre}</h2>
+
+<img id="${id}"
+class="qr-img"
+src="${valor}"
+onclick="zoomQR('${id}')">
+
+<div class="texto-pro">${descripcion}</div>
+
+<div class="botones-qr">
+
+<button class="btn-copy"
+onclick="copiarQR('${id}')">
+📋 Copiar
+</button>
+
+<button class="btn-download"
+onclick="descargarQR('${valor}','${nombre}')">
+⬇ Descargar
+</button>
+
+</div>
+
+</div>
+`
+
+}
+
+/* VIDEO */
+
+if(
+valor.includes("youtube") ||
+valor.includes("tiktok") ||
+valor.includes("facebook")
+){
+
+return `
+<div class="card-pro ${destacado}">
+
+<h2>${nombre}</h2>
+
+<div class="video-container">
+<iframe src="${convertirVideo(valor)}" allowfullscreen></iframe>
+</div>
+
+<div class="texto-pro">${descripcion}</div>
+
+</div>
+`
+}
+
+/* TEXTO */
+
+return `
+<div class="card-pro ${destacado}">
+
+<h2>${nombre}</h2>
+
+<div class="texto-pro">
+${valor}
+${descripcion}
+</div>
+
+<button class="btn-copy" onclick="copiarTarjeta(this)">
+📋 Copiar
+</button>
+
+</div>
+`
+}
+
+
+/* ============================ */
+/* BUSCADOR */
+/* ============================ */
+
+function buscarGeneral(id){
+
+let input = event.target.value.toLowerCase()
+
+let contenedor = document.getElementById("contenido_"+id)
+
+contenedor.querySelectorAll(".card-pro").forEach(card=>{
+
+let texto = card.innerText.toLowerCase()
+
+card.style.display = texto.includes(input) ? "block" : "none"
+
+})
+
+}
+
+
+/* ============================ */
+/* UTILIDADES */
+/* ============================ */
+
+function logout(){
+localStorage.clear()
+window.location.href="login.html"
+}
+
+function zoomQR(id){
+document.getElementById(id).classList.toggle("zoom")
+}
+
+function copiarTarjeta(btn){
+
+let texto = btn.closest(".card-pro").innerText
+
+navigator.clipboard.writeText(texto)
+
+}
+
+function descargarQR(url,nombre){
+let a=document.createElement("a")
+a.href=url
+a.download=nombre+".png"
+a.click()
+}
+
+function convertirVideo(link){
+
+if(link.includes("youtube")){
+let id = link.split("v=")[1] || link.split("/").pop()
+return "https://www.youtube.com/embed/"+id
+}
+
+return link
+}
+
+
+/* ============================ */
+/* INICIAR */
+/* ============================ */
+
+cargarCategorias()
+
+</script>
 
 </body>
 </html>
