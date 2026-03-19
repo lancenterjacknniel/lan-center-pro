@@ -1,11 +1,20 @@
 ### Netflix | activo=true
 
-Netflix | qr.png
+Netflix | qr_netflix.png
 
-Texto netflix
+🔥 Recargas con bonus
+💎 Promoción limitada
+🎮 Ven al LAN CENTER
+
+Video LAN | https://www.youtube.com/watch?v=2KNulTJWk54
 
 ---
 
 ### Crunchyroll | activo=true
 
 Texto crunchyroll
+
+🔥 Recargas con bonus
+💎 Promoción limitada
+🎮 Ven al LAN CENTER
+
