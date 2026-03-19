@@ -1,0 +1,2 @@
+admin | 1234 | admin | activo=true
+operador | 1111 | operador | activo=true
