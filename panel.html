@@ -26,6 +26,11 @@ position:relative;
 border:2px solid yellow;
 box-shadow:0 0 20px yellow;
 }
+
+.btn-sub.active{
+box-shadow:0 0 20px lime;
+transform:scale(1.05);
+}
 </style>
 </head>
 
@@ -67,7 +72,7 @@ document.getElementById("rolTexto").innerText="Usuario: "+user+" ("+rol+")"
 
 
 /* ============================ */
-/* CATEGORIAS PRO */
+/* CATEGORIAS */
 /* ============================ */
 
 async function cargarCategorias(){
@@ -90,7 +95,6 @@ let datos = linea.split("|")
 
 let nombre = datos[0].trim()
 let archivo = datos[1].trim()
-
 let id = nombre.replaceAll(" ","_")
 
 let color = "cyan"
@@ -100,7 +104,6 @@ let icon = ""
 let orden = 0
 
 datos.forEach(d=>{
-
 d = d.trim()
 
 if(d.includes("color=")) color = d.split("=")[1]
@@ -108,7 +111,6 @@ if(d.includes("activo=")) activo = d.includes("true")
 if(d.includes("roles=")) roles = d.split("=")[1]
 if(d.includes("icon=")) icon = d.split("=")[1]
 if(d.includes("orden=")) orden = parseInt(d.split("=")[1])
-
 })
 
 if(!activo) return
@@ -118,11 +120,7 @@ lista.push({nombre,archivo,id,color,orden,icon})
 
 })
 
-/* ORDENAR */
-
 lista.sort((a,b)=>a.orden-b.orden)
-
-/* RENDER */
 
 lista.forEach(cat=>{
 
@@ -174,7 +172,7 @@ cargarContenido(archivo,"contenido_"+id)
 
 
 /* ============================ */
-/* CONTENIDO PRO */
+/* CONTENIDO */
 /* ============================ */
 
 async function cargarContenido(archivo,contenedor){
@@ -194,8 +192,6 @@ let valorActual=""
 let descripcion=""
 
 lineas.forEach(linea=>{
-
-/* SUBCATEGORIA PRO */
 
 if(linea.startsWith("###")){
 
@@ -229,7 +225,7 @@ linea=linea.trim()
 if(linea.includes("|")){
 
 if(nombreActual){
-html+=crearTarjeta(nombreActual,valorActual,descripcion)
+html+=crearTarjeta(nombreActual,valorActual,descripcion,categoriaActual)
 }
 
 let partes=linea.split("|")
@@ -248,7 +244,7 @@ descripcion += linea + "\n"
 })
 
 if(nombreActual){
-html+=crearTarjeta(nombreActual,valorActual,descripcion)
+html+=crearTarjeta(nombreActual,valorActual,descripcion,categoriaActual)
 }
 
 div.innerHTML = `<div class="grid">${html}</div>`
@@ -257,10 +253,10 @@ div.innerHTML = `<div class="grid">${html}</div>`
 
 
 /* ============================ */
-/* TARJETAS PRO */
+/* TARJETAS */
 /* ============================ */
 
-function crearTarjeta(nombre,valor,descripcion){
+function crearTarjeta(nombre,valor,descripcion,categoriaActual){
 
 let destacado = descripcion.includes("destacado=true") ? "destacado" : ""
 
@@ -269,7 +265,7 @@ if(valor.match(/\.(png|jpg|jpeg|webp|gif)$/i)){
 let id="img_"+nombre.replaceAll(" ","")
 
 return `
-<div class="card-pro ${destacado}">
+<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
 
 <h2>${nombre}</h2>
 
@@ -282,33 +278,21 @@ onclick="zoomQR('${id}')">
 
 <div class="botones-qr">
 
-<button class="btn-copy"
-onclick="copiarQR('${id}')">
-📋 Copiar
-</button>
-
-<button class="btn-download"
-onclick="descargarQR('${valor}','${nombre}')">
-⬇ Descargar
-</button>
+<button class="btn-copy" onclick="copiarQR('${id}')">📋 Copiar</button>
+<button class="btn-download" onclick="descargarQR('${valor}','${nombre}')">⬇ Descargar</button>
 
 </div>
 
 </div>
 `
-
 }
 
 /* VIDEO */
 
-if(
-valor.includes("youtube") ||
-valor.includes("tiktok") ||
-valor.includes("facebook")
-){
+if(valor.includes("youtube") || valor.includes("tiktok") || valor.includes("facebook")){
 
 return `
-<div class="card-pro ${destacado}">
+<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
 
 <h2>${nombre}</h2>
 
@@ -325,7 +309,7 @@ return `
 /* TEXTO */
 
 return `
-<div class="card-pro ${destacado}">
+<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
 
 <h2>${nombre}</h2>
 
@@ -334,12 +318,37 @@ ${valor}
 ${descripcion}
 </div>
 
-<button class="btn-copy" onclick="copiarTarjeta(this)">
-📋 Copiar
-</button>
+<button class="btn-copy" onclick="copiarTarjeta(this)">📋 Copiar</button>
 
 </div>
 `
+}
+
+
+/* ============================ */
+/* FILTRAR SUB */
+/* ============================ */
+
+function filtrarSub(cat){
+
+document.querySelectorAll(".btn-sub").forEach(btn=>{
+btn.classList.remove("active")
+
+if(btn.innerText.trim() === cat){
+btn.classList.add("active")
+}
+})
+
+document.querySelectorAll(".card-pro").forEach(card=>{
+
+if(card.dataset.cat === cat){
+card.style.display = "block"
+}else{
+card.style.display = "none"
+}
+
+})
+
 }
 
 
@@ -378,11 +387,8 @@ document.getElementById(id).classList.toggle("zoom")
 }
 
 function copiarTarjeta(btn){
-
 let texto = btn.closest(".card-pro").innerText
-
 navigator.clipboard.writeText(texto)
-
 }
 
 function descargarQR(url,nombre){
