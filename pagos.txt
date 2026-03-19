@@ -1,0 +1,11 @@
+### Netflix | activo=true
+
+Netflix | qr.png
+
+Texto netflix
+
+---
+
+### Crunchyroll | activo=true
+
+Texto crunchyroll
