@@ -1,0 +1,3 @@
+Lcj Qr | pagos.txt | color=cyan | roles=admin,operador | icon=💰 | orden=1
+
+Lcj Videos | videos.txt | color=orange | roles=admin | icon=🎬 | orden=2
