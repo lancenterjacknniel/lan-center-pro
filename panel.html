@@ -10,6 +10,7 @@
 display:flex;
 gap:10px;
 margin-top:10px;
+flex-wrap:wrap;
 }
 
 .botones-qr button{
@@ -20,16 +21,6 @@ flex:1;
 transform:scale(1.5);
 z-index:1000;
 position:relative;
-}
-
-.destacado{
-border:2px solid yellow;
-box-shadow:0 0 20px yellow;
-}
-
-.btn-sub.active{
-box-shadow:0 0 20px lime;
-transform:scale(1.05);
 }
 </style>
 </head>
@@ -60,16 +51,9 @@ transform:scale(1.05);
 <script>
 
 /* LOGIN */
-
 let user = localStorage.getItem("user")
-let rol = localStorage.getItem("rol") || "admin"
-
-if(!user){
-window.location.href="login.html"
-}
-
-document.getElementById("rolTexto").innerText="Usuario: "+user+" ("+rol+")"
-
+if(!user){ window.location.href="login.html" }
+document.getElementById("rolTexto").innerText="Usuario: "+user
 
 /* ============================ */
 /* CATEGORIAS */
@@ -80,7 +64,7 @@ async function cargarCategorias(){
 let menu = document.getElementById("menuCategorias")
 let panel = document.getElementById("panelDinamico")
 
-let lista = []
+try{
 
 const res = await fetch("categorias.txt?v="+Date.now())
 const texto = await res.text()
@@ -92,56 +76,27 @@ lineas.forEach(linea=>{
 if(!linea.includes("|")) return
 
 let datos = linea.split("|")
-
 let nombre = datos[0].trim()
 let archivo = datos[1].trim()
 let id = nombre.replaceAll(" ","_")
 
-let color = "cyan"
-let activo = true
-let roles = "admin,operador"
-let icon = ""
-let orden = 0
-
-datos.forEach(d=>{
-d = d.trim()
-
-if(d.includes("color=")) color = d.split("=")[1]
-if(d.includes("activo=")) activo = d.includes("true")
-if(d.includes("roles=")) roles = d.split("=")[1]
-if(d.includes("icon=")) icon = d.split("=")[1]
-if(d.includes("orden=")) orden = parseInt(d.split("=")[1])
-})
-
-if(!activo) return
-if(!roles.includes(rol)) return
-
-lista.push({nombre,archivo,id,color,orden,icon})
-
-})
-
-lista.sort((a,b)=>a.orden-b.orden)
-
-lista.forEach(cat=>{
-
 menu.innerHTML += `
-<button class="btn"
-style="background:${cat.color}"
-onclick="abrirCategoria('${cat.id}','${cat.archivo}','${cat.nombre}')">
-${cat.icon} ${cat.nombre}
+<button class="btn" onclick="abrirCategoria('${id}','${archivo}')">
+${nombre}
 </button>
 `
 
 panel.innerHTML += `
-<div id="panel_${cat.id}" class="panel-seccion" style="display:none;">
+<div id="panel_${id}" class="panel-seccion" style="display:none;">
 
-<h2 class="subtitulo">${cat.nombre}</h2>
+<h2 class="subtitulo">${nombre}</h2>
 
-<input class="buscador"
+<input
+class="buscador"
 placeholder="🔍 Buscar..."
-onkeyup="buscarGeneral('${cat.id}')">
+onkeyup="buscarGeneral(event,'${id}')">
 
-<div id="contenido_${cat.id}">
+<div id="contenido_${id}">
 ⏳ Cargando...
 </div>
 
@@ -150,8 +105,11 @@ onkeyup="buscarGeneral('${cat.id}')">
 
 })
 
+}catch{
+menu.innerHTML="Error cargando categorias"
 }
 
+}
 
 /* ============================ */
 /* ABRIR CATEGORIA */
@@ -167,23 +125,23 @@ let panel = document.getElementById("panel_"+id)
 panel.style.display="block"
 
 cargarContenido(archivo,"contenido_"+id)
-
 }
 
-
 /* ============================ */
-/* CONTENIDO */
+/* CARGAR TXT */
 /* ============================ */
 
 async function cargarContenido(archivo,contenedor){
 
 let div = document.getElementById(contenedor)
 
+try{
+
 const res = await fetch(archivo+"?v="+Date.now())
 const texto = await res.text()
 
 let html=""
-let categoriaActual=""
+let categoriaActual="" 
 
 let lineas = texto.split("\n")
 
@@ -194,20 +152,7 @@ let descripcion=""
 lineas.forEach(linea=>{
 
 if(linea.startsWith("###")){
-
-let partes = linea.replace("###","").trim().split("|")
-
-categoriaActual = partes[0].trim()
-
-let activo = true
-
-partes.forEach(p=>{
-if(p.includes("activo=")){
-activo = p.includes("true")
-}
-})
-
-if(!activo) return
+categoriaActual = linea.replace("###","").trim()
 
 html += `
 <div class="subcategoria">
@@ -216,7 +161,6 @@ ${categoriaActual}
 </button>
 </div>
 `
-
 return
 }
 
@@ -232,13 +176,10 @@ let partes=linea.split("|")
 
 nombreActual=partes[0].trim()
 valorActual=partes.slice(1).join("|").trim()
-
 descripcion=""
 
 }else{
-
 descripcion += linea + "\n"
-
 }
 
 })
@@ -249,37 +190,43 @@ html+=crearTarjeta(nombreActual,valorActual,descripcion,categoriaActual)
 
 div.innerHTML = `<div class="grid">${html}</div>`
 
+}catch{
+div.innerHTML="Error cargando archivo"
 }
 
+}
 
 /* ============================ */
-/* TARJETAS */
+/* CREAR TARJETAS */
 /* ============================ */
 
 function crearTarjeta(nombre,valor,descripcion,categoriaActual){
-
-let destacado = descripcion.includes("destacado=true") ? "destacado" : ""
 
 if(valor.match(/\.(png|jpg|jpeg|webp|gif)$/i)){
 
 let id="img_"+nombre.replaceAll(" ","")
 
 return `
-<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
+<div class="card-pro" data-cat="${categoriaActual}" onclick="copiarTarjeta(this)">
 
 <h2>${nombre}</h2>
 
 <img id="${id}"
 class="qr-img"
 src="${valor}"
-onclick="zoomQR('${id}')">
+onclick="event.stopPropagation(); zoomQR('${id}')">
 
 <div class="texto-pro">${descripcion}</div>
 
 <div class="botones-qr">
 
-<button class="btn-copy" onclick="copiarQR('${id}')">📋 Copiar</button>
-<button class="btn-download" onclick="descargarQR('${valor}','${nombre}')">⬇ Descargar</button>
+<button class="btn-copy" onclick="copiarQR('${id}')">
+📋 Copiar
+</button>
+
+<button class="btn-download" onclick="descargarQR('${valor}','${nombre}')">
+⬇ Descargar
+</button>
 
 </div>
 
@@ -287,29 +234,52 @@ onclick="zoomQR('${id}')">
 `
 }
 
-/* VIDEO */
-
-if(valor.includes("youtube") || valor.includes("tiktok") || valor.includes("facebook")){
+if(
+valor.includes("youtube.com") ||
+valor.includes("youtu.be") ||
+valor.includes("tiktok.com") ||
+valor.includes("instagram.com") ||
+valor.includes("facebook.com") ||
+valor.match(/\.(mp4|webm|ogg)$/i)
+){
 
 return `
-<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
+<div class="card-pro" data-cat="${categoriaActual}">
 
 <h2>${nombre}</h2>
 
 <div class="video-container">
-<iframe src="${convertirVideo(valor)}" allowfullscreen></iframe>
+
+<iframe
+src="${convertirVideo(valor)}"
+frameborder="0"
+allowfullscreen>
+</iframe>
+
 </div>
 
 <div class="texto-pro">${descripcion}</div>
+
+<div class="botones-qr">
+
+<button class="btn-copy"
+onclick="navigator.clipboard.writeText('${valor}');mostrarMensaje('Link copiado')">
+📋 Copiar link
+</button>
+
+<button class="btn-download"
+onclick="window.open('${valor}','_blank')">
+▶ Abrir video
+</button>
+
+</div>
 
 </div>
 `
 }
 
-/* TEXTO */
-
 return `
-<div class="card-pro ${destacado}" data-cat="${categoriaActual}">
+<div class="card-pro" data-cat="${categoriaActual}">
 
 <h2>${nombre}</h2>
 
@@ -318,47 +288,21 @@ ${valor}
 ${descripcion}
 </div>
 
-<button class="btn-copy" onclick="copiarTarjeta(this)">📋 Copiar</button>
+<button class="btn-copy" onclick="copiarTarjeta(this)">
+📋 Copiar
+</button>
 
 </div>
 `
 }
 
-
-/* ============================ */
-/* FILTRAR SUB */
-/* ============================ */
-
-function filtrarSub(cat){
-
-document.querySelectorAll(".btn-sub").forEach(btn=>{
-btn.classList.remove("active")
-
-if(btn.innerText.trim() === cat){
-btn.classList.add("active")
-}
-})
-
-document.querySelectorAll(".card-pro").forEach(card=>{
-
-if(card.dataset.cat === cat){
-card.style.display = "block"
-}else{
-card.style.display = "none"
-}
-
-})
-
-}
-
-
 /* ============================ */
 /* BUSCADOR */
 /* ============================ */
 
-function buscarGeneral(id){
+function buscarGeneral(e,id){
 
-let input = event.target.value.toLowerCase()
+let input = e.target.value.toLowerCase()
 
 let contenedor = document.getElementById("contenido_"+id)
 
@@ -372,23 +316,67 @@ card.style.display = texto.includes(input) ? "block" : "none"
 
 }
 
+/* ============================ */
+/* COPIAR TARJETA (FIX) */
+/* ============================ */
+
+function copiarTarjeta(btn){
+
+let tarjeta = btn.closest(".card-pro")
+
+// 🔥 Clonar la tarjeta para modificar sin afectar la original
+let clon = tarjeta.cloneNode(true)
+
+// ❌ eliminar título
+let titulo = clon.querySelector("h2")
+if(titulo) titulo.remove()
+
+// ❌ eliminar botones
+clon.querySelectorAll("button").forEach(b=>b.remove())
+
+// ❌ eliminar iframes (videos si hay)
+clon.querySelectorAll("iframe").forEach(v=>v.remove())
+
+// obtener texto limpio
+let texto = clon.innerText.trim()
+
+navigator.clipboard.writeText(texto)
+
+.then(()=>{
+mostrarMensaje("📋 Tarjeta copiada")
+})
+
+.catch(()=>{
+
+let area=document.createElement("textarea")
+area.value=texto
+
+document.body.appendChild(area)
+area.select()
+document.execCommand("copy")
+document.body.removeChild(area)
+
+mostrarMensaje("📋 Copiado")
+
+})
+
+}
+  
 
 /* ============================ */
 /* UTILIDADES */
 /* ============================ */
 
-function logout(){
-localStorage.clear()
-window.location.href="login.html"
-}
+async function copiarQR(id){
+let img=document.getElementById(id)
+const res=await fetch(img.src)
+const blob=await res.blob()
 
-function zoomQR(id){
-document.getElementById(id).classList.toggle("zoom")
-}
+await navigator.clipboard.write([
+new ClipboardItem({[blob.type]:blob})
+])
 
-function copiarTarjeta(btn){
-let texto = btn.closest(".card-pro").innerText
-navigator.clipboard.writeText(texto)
+mostrarMensaje("Imagen copiada")
 }
 
 function descargarQR(url,nombre){
@@ -398,19 +386,76 @@ a.download=nombre+".png"
 a.click()
 }
 
+function zoomQR(id){
+document.getElementById(id).classList.toggle("zoom")
+}
+
+function mostrarMensaje(txt){
+let aviso=document.createElement("div")
+aviso.innerText=txt
+aviso.className="toast"
+document.body.appendChild(aviso)
+setTimeout(()=>aviso.remove(),1500)
+}
+
+function logout(){
+localStorage.clear()
+window.location.href="login.html"
+}
+
+/* ============================ */
+/* VIDEO */
+/* ============================ */
+
 function convertirVideo(link){
 
-if(link.includes("youtube")){
-let id = link.split("v=")[1] || link.split("/").pop()
+if(link.includes("youtube.com/watch")){
+let id = link.split("v=")[1].split("&")[0]
 return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("youtube.com/shorts")){
+let id = link.split("/shorts/")[1]
+return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("youtu.be")){
+let id = link.split("/").pop()
+return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("tiktok.com")){
+return link.replace("/video/","/embed/")
+}
+
+if(link.includes("instagram.com")){
+return link+"/embed"
+}
+
+if(link.includes("facebook.com")){
+return "https://www.facebook.com/plugins/video.php?href="+link
 }
 
 return link
 }
 
-
 /* ============================ */
-/* INICIAR */
+/* FILTRO */
+/* ============================ */
+
+function filtrarSub(cat){
+
+document.querySelectorAll(".btn-sub").forEach(btn=>{
+btn.classList.toggle("active", btn.innerText.trim()==cat)
+})
+
+document.querySelectorAll(".card-pro").forEach(card=>{
+card.style.display = (card.dataset.cat===cat) ? "block" : "none"
+})
+
+window.scrollTo({top:0,behavior:"smooth"})
+}
+
 /* ============================ */
 
 cargarCategorias()
