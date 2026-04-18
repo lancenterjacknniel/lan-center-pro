@@ -8,7 +8,7 @@ Video LAN | https://www.youtube.com/watch?v=2KNulTJWk54
 
 ---
 
-### Crunchyroll | activo=true
+Crunchyroll | activo=true
 
 Texto crunchyroll
 
