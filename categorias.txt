@@ -1,3 +1,9 @@
-Lcj Qr | pagos.txt | color=cyan | roles=admin,operador | icon=💰 | orden=1
+Qr | pagos.txt
+Mensajes Rápidos | mensajes_lan.txt
+Precios | precios.txt
+Galería | albun.txt
+Videos | videos.txt
+Promociones | promos.txt
 
-Lcj Videos | videos.txt | color=orange | roles=admin | icon=🎬 | orden=2
+
+NOMBRE BOTON | ARCHIVO TXT
