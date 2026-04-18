@@ -34,8 +34,8 @@ position:relative;
 <img src="logo.png" class="logo">
 </div>
 
-<h1 class="titulo">PANEL LAN CENTER</h1>
-<h2 class="rol">Modo Libre</h2>
+<h1 class="titulo">PANEL LAN CENTER JACKNNIEL</h1>
+<h2 id="rolTexto" class="rol"></h2>
 </div>
 
 <hr>
@@ -48,11 +48,49 @@ position:relative;
 
 <br>
 
-<!-- ❌ BOTÓN SALIR ELIMINADO -->
+<button class="btn-salir" onclick="logout()">Salir</button>
 
 <script>
 
-/* 🚫 LOGIN ELIMINADO COMPLETAMENTE */
+/* ============================ */
+/* 🔓 ACCESO DIRECTO (SIN LOGIN) */
+/* ============================ */
+
+let user = localStorage.getItem("user") || "ADMIN"
+document.getElementById("rolTexto").innerText="Usuario: "+user
+
+/* ============================ */
+/* 📄 CARGAR USUARIOS DESDE TXT */
+/* ============================ */
+
+async function cargarUsuarios(){
+
+try{
+const res = await fetch("usuarios.txt?v="+Date.now())
+const texto = await res.text()
+
+let usuarios = {}
+
+texto.split("\n").forEach(linea=>{
+
+if(!linea.includes("|")) return
+
+let [user, pass] = linea.split("|")
+
+usuarios[user.trim()] = pass.trim()
+
+})
+
+console.log("Usuarios cargados:", usuarios)
+
+return usuarios
+
+}catch{
+console.log("Error cargando usuarios")
+return {}
+}
+
+}
 
 /* ============================ */
 /* CATEGORIAS */
@@ -187,7 +225,7 @@ if(nombreActual){
 html+=crearTarjeta(nombreActual,valorActual,descripcion,categoriaActual)
 }
 
-div.innerHTML = <div class="grid">${html}</div>
+div.innerHTML = `<div class="grid">${html}</div>`
 
 }catch{
 div.innerHTML="Error cargando archivo"
@@ -206,14 +244,14 @@ if(valor.match(/\.(png|jpg|jpeg|webp|gif)$/i)){
 let id="img_"+nombre.replaceAll(" ","")
 
 return `
-<div class="card-pro" data-cat="${categoriaActual}">
+<div class="card-pro" data-cat="${categoriaActual}" onclick="copiarTarjeta(this)">
 
 <h2>${nombre}</h2>
 
 <img id="${id}"
 class="qr-img"
 src="${valor}"
-onclick="zoomQR('${id}')">
+onclick="event.stopPropagation(); zoomQR('${id}')">
 
 <div class="texto-pro">${descripcion}</div>
 
@@ -225,6 +263,50 @@ onclick="zoomQR('${id}')">
 
 <button class="btn-download" onclick="descargarQR('${valor}','${nombre}')">
 ⬇ Descargar
+</button>
+
+</div>
+
+</div>
+`
+}
+
+if(
+valor.includes("youtube.com") ||
+valor.includes("youtu.be") ||
+valor.includes("tiktok.com") ||
+valor.includes("instagram.com") ||
+valor.includes("facebook.com") ||
+valor.match(/\.(mp4|webm|ogg)$/i)
+){
+
+return `
+<div class="card-pro" data-cat="${categoriaActual}">
+
+<h2>${nombre}</h2>
+
+<div class="video-container">
+
+<iframe
+src="${convertirVideo(valor)}"
+frameborder="0"
+allowfullscreen>
+</iframe>
+
+</div>
+
+<div class="texto-pro">${descripcion}</div>
+
+<div class="botones-qr">
+
+<button class="btn-copy"
+onclick="navigator.clipboard.writeText('${valor}');mostrarMensaje('Link copiado')">
+📋 Copiar link
+</button>
+
+<button class="btn-download"
+onclick="window.open('${valor}','_blank')">
+▶ Abrir video
 </button>
 
 </div>
@@ -278,10 +360,27 @@ card.style.display = texto.includes(input) ? "block" : "none"
 function copiarTarjeta(btn){
 
 let tarjeta = btn.closest(".card-pro")
+let clon = tarjeta.cloneNode(true)
 
-let texto = tarjeta.innerText.trim()
+let titulo = clon.querySelector("h2")
+if(titulo) titulo.remove()
+
+clon.querySelectorAll("button").forEach(b=>b.remove())
+clon.querySelectorAll("iframe").forEach(v=>v.remove())
+
+let texto = clon.innerText.trim()
 
 navigator.clipboard.writeText(texto)
+.then(()=> mostrarMensaje("📋 Copiado"))
+.catch(()=>{
+let area=document.createElement("textarea")
+area.value=texto
+document.body.appendChild(area)
+area.select()
+document.execCommand("copy")
+document.body.removeChild(area)
+mostrarMensaje("📋 Copiado")
+})
 
 }
 
@@ -298,7 +397,7 @@ await navigator.clipboard.write([
 new ClipboardItem({[blob.type]:blob})
 ])
 
-alert("Imagen copiada")
+mostrarMensaje("Imagen copiada")
 }
 
 function descargarQR(url,nombre){
@@ -312,8 +411,75 @@ function zoomQR(id){
 document.getElementById(id).classList.toggle("zoom")
 }
 
+function mostrarMensaje(txt){
+let aviso=document.createElement("div")
+aviso.innerText=txt
+aviso.className="toast"
+document.body.appendChild(aviso)
+setTimeout(()=>aviso.remove(),1500)
+}
+
+function logout(){
+localStorage.clear()
+location.reload()
+}
+
+/* ============================ */
+/* VIDEO */
 /* ============================ */
 
+function convertirVideo(link){
+
+if(link.includes("youtube.com/watch")){
+let id = link.split("v=")[1].split("&")[0]
+return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("youtube.com/shorts")){
+let id = link.split("/shorts/")[1]
+return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("youtu.be")){
+let id = link.split("/").pop()
+return "https://www.youtube.com/embed/"+id
+}
+
+if(link.includes("tiktok.com")){
+return link.replace("/video/","/embed/")
+}
+
+if(link.includes("instagram.com")){
+return link+"/embed"
+}
+
+if(link.includes("facebook.com")){
+return "https://www.facebook.com/plugins/video.php?href="+link
+}
+
+return link
+}
+
+/* ============================ */
+/* FILTRO */
+/* ============================ */
+
+function filtrarSub(cat){
+
+document.querySelectorAll(".btn-sub").forEach(btn=>{
+btn.classList.toggle("active", btn.innerText.trim()==cat)
+})
+
+document.querySelectorAll(".card-pro").forEach(card=>{
+card.style.display = (card.dataset.cat===cat) ? "block" : "none"
+})
+
+window.scrollTo({top:0,behavior:"smooth"})
+}
+
+/* ============================ */
+
+cargarUsuarios()
 cargarCategorias()
 
 </script>
