@@ -1,4 +1,4 @@
-### Netflix | activo=true
+### Netflix
 
 Netflix | qr_netflix.png
 
